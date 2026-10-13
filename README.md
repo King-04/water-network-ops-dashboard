@@ -47,35 +47,6 @@ This starts three containers:
 - **Grafana 11** with the [Business Charts](https://grafana.com/grafana/plugins/volkovlabs-echarts-panel/) plugin. The data source and dashboard are provisioned automatically, and anonymous viewing is on.
 - **A refresher**, which calls `ops.shift_to_now()` every 15 minutes to move the data forward in time, so the dashboard keeps showing the last 7 days however long the stack runs.
 
-## How it is built
-
-```mermaid
-flowchart LR
-  subgraph repo
-    SQL[db/*.sql<br/>schema + seed] --> PG[(PostgreSQL)]
-    Q[queries/*.sql] --> B
-    K[src/kit.js<br/>design tokens + card] --> B[tools/build.mjs]
-    P[src/panels/*.js] --> B
-    B --> D[grafana/dashboards/*.json]
-  end
-  PG --> G[Grafana + Business Charts]
-  D --> G
-  Q --> R[tools/run-queries.mjs<br/>PGlite, in-memory Postgres]
-  R --> S[tools/render.mjs<br/>Playwright + ECharts]
-  D --> S --> PNG[screenshots/*.png]
-```
-
-- **Panels are source files, not JSON blobs.** Each panel lives in `src/panels/` as readable JavaScript. `npm run build` combines it with the shared kit and writes the Grafana dashboard JSON, so diffs stay reviewable.
-- **One small design system.** [`src/kit.js`](src/kit.js) holds the tokens (colours for both themes, type, spacing), the card frame, tooltips, formatting and a resize hook. Panels only describe their data and chart.
-- **Responsive by construction.** Every panel draws through `build(width, height)` and redraws on resize, so labels, columns and legends adapt to the panel size instead of overlapping.
-- **Screenshots come from real query output.** `npm run screenshots` loads the schema and seed into [PGlite](https://pglite.dev), an in-memory Postgres, and runs every query with Grafana's time macros expanded. It then renders the same panel code Grafana runs in headless Chromium. Every image in this README was produced that way.
-
-```bash
-npm install
-npx playwright install chromium
-npm run all            # build dashboard JSON, regenerate every screenshot + hero (hero needs Python + Pillow)
-```
-
 ## Data model
 
 ```
