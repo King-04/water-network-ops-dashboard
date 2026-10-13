@@ -1,0 +1,21 @@
+{
+  "name": "water-network-ops-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Grafana + ECharts operations dashboard for a fictional water utility, on a synthetic PostgreSQL historian",
+  "license": "MIT",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "data": "node tools/run-queries.mjs",
+    "screenshots": "node tools/run-queries.mjs && node tools/render.mjs",
+    "all": "npm run build && npm run screenshots && npm run hero",
+    "hero": "python3 tools/hero.py . '#0B2A33' '#0FB5A0' 15"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.2.17",
+    "echarts": "5.6.0",
+    "playwright": "1.56.1",
+    "@fontsource/plus-jakarta-sans": "5.1.0"
+  }
+}

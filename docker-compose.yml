@@ -1,0 +1,47 @@
+# docker compose up  ->  http://localhost:3000  (anonymous viewer access)
+name: lumenvale-water
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: lumenvale
+      POSTGRES_USER: grafana
+      POSTGRES_PASSWORD: grafana
+      PGPASSWORD: grafana                        # used by the healthcheck below
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d:ro      # schema + seed run on first start
+    healthcheck:
+      # TCP + function check: passes only after the seed scripts have finished
+      test: ["CMD-SHELL", "psql -h 127.0.0.1 -U grafana -d lumenvale -tAc \"SELECT 1 FROM pg_proc WHERE proname = 'shift_to_now'\" | grep -q 1"]
+      interval: 5s
+      start_period: 20s
+      retries: 40
+
+  # Slides the synthetic data forward so the dashboard always shows "now"
+  refresher:
+    image: postgres:16-alpine
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: grafana
+    entrypoint: ["/bin/sh", "-c", "while true; do psql -h db -U grafana -d lumenvale -qtAc 'SELECT ops.shift_to_now()'; sleep 900; done"]
+
+  grafana:
+    image: grafana/grafana-oss:11.3.0
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # Business Charts plugin; append a version ("volkovlabs-echarts-panel 6.x.y") to pin it
+      GF_INSTALL_PLUGINS: volkovlabs-echarts-panel
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_DEFAULT_THEME: dark
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/lumenvale-network-ops.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
